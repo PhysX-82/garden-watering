@@ -19,19 +19,19 @@
 LiquidCrystal_I2C lcd(0x3F,16,2); 
 DHT dht(DHTPIN, DHTTYPE);
 
-#define WIFI_AP "Bornhack-NAT"
-#define WIFI_PASSWORD ""
+#define WIFI_AP "StativStakitKasket-2.4GHz"
+#define WIFI_PASSWORD "123456789a"
 #define TOKEN "smbZqxg7emKgnhNjHNgF"
 #define soft Serial1
 
 int info_update_time = 1000;
 int menu_update_time = 5000;
-int upload_tid = 5000;
+int upload_tid = 60000;
 int water_level_tid = 60000;
 long vande_tid = 10000;
 int converted_vande_tid = 10;
-long kontrol_tid = 60000;
-int converted_kontrol_tid = 1;
+long kontrol_tid = 900000;
+int converted_kontrol_tid = 15;
 int converted_resterende_tid;
 int setpunkt_fugt = 50;
 int pin_relae_1 = 5;
@@ -187,36 +187,36 @@ if (WiFi.status() == WL_NO_SHIELD) {
 void increase_kontrol_tid() {
     kontrol_tid += 60000;
     converted_kontrol_tid = kontrol_tid / 60000;
-    delay(100);
+    delay(150);
 }
 
 void decrease_kontrol_tid() {
     kontrol_tid -= 60000;
     converted_kontrol_tid = kontrol_tid / 60000;
-    delay(100);
+    delay(150);
 }
 
 void increase_vande_tid() {
     vande_tid += 1000;
     converted_vande_tid = vande_tid / 1000;
-    delay(100);
+    delay(150);
 }
 
 void decrease_vande_tid() {
     vande_tid -= 1000;
     converted_vande_tid = vande_tid / 1000;
-    delay(100);
+    delay(150);
 
 }
 
 void increase_fugt() {
     setpunkt_fugt += 1;
-    delay(100);
+    delay(150);
 }
 
 void decrease_fugt() {
     setpunkt_fugt -= 1;
-    delay(100);
+    delay(150);
 
 }
 
@@ -231,23 +231,23 @@ void buttonsCheck() {
   if (knap_1 == LOW) {         
     menu.switch_focus();
     menu.next_screen();
-    delay(100);
+    delay(250);
     menu.switch_focus();
   } 
   
   if (knap_2 == LOW) {         
     menu.switch_focus();
     menu.previous_screen();
-    delay(100);
+    delay(250);
     menu.switch_focus();
   } 
   if (knap_3 == LOW) {         
     menu.call_function(increase);
-    delay(100);
+    delay(250);
   } 
   if (knap_4 == LOW) {         
     menu.call_function(decrease);
-    delay(100);
+    delay(250);
   } 
 }
 
@@ -337,23 +337,6 @@ void wifi_connect() {
   client.loop();
 }
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Connecting to ThingsBoard node ...");
-    // Attempt to connect (clientId, username, password)
-    if ( client.connect("Arduino Uno Device", TOKEN, NULL) ) {
-      Serial.println( "[DONE]" );
-    } else {
-      Serial.print( "[FAILED] [ rc = " );
-      Serial.print( client.state() );
-      Serial.println( " : retrying in 5 seconds]" );
-      // Wait 5 seconds before retrying
-      delay( 5000 );
-    }
-  }
-}
-
 void getAndSendTemperatureAndHumidityData()
 {
   Serial.println("Collecting temperature data.");
@@ -362,12 +345,14 @@ void getAndSendTemperatureAndHumidityData()
   float h = dht.readHumidity();
   // Read temperature as Celsius (the default)
   float t = dht.readTemperature();
+  client.loop();
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t)) {
     Serial.println("Failed to read from DHT sensor!");
     return;
   }
+  
 
   Serial.print("Humidity: ");
   Serial.print(h);
@@ -399,6 +384,23 @@ void getAndSendTemperatureAndHumidityData()
   Serial.println( attributes );
 }
 
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Connecting to ThingsBoard node ...");
+    // Attempt to connect (clientId, username, password)
+    if ( client.connect("Arduino Uno Device", TOKEN, NULL) ) {
+      Serial.println( "[DONE]" );
+    } else {
+      Serial.print( "[FAILED] [ rc = " );
+      Serial.print( client.state() );
+      Serial.println( " : retrying in 5 seconds]" );
+      // Wait 5 seconds before retrying
+      delay( 5000 );
+    }
+  }
+}
+
 void loop(){
   buttonsCheck();
   update_menu_timer.run();
@@ -407,8 +409,4 @@ void loop(){
   vande_tid_timer.run();
   upload_tid_timer.run();
   water_level_tid_timer.run();
-
 }
-
-
-
