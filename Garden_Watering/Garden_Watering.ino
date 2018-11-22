@@ -19,21 +19,21 @@
 LiquidCrystal_I2C lcd(0x3F,16,2); 
 DHT dht(DHTPIN, DHTTYPE);
 
-#define WIFI_AP "Bornhack-NAT"
-#define WIFI_PASSWORD ""
+#define WIFI_AP "StativStakitKasket-2.4GHz"
+#define WIFI_PASSWORD "123456789a"
 #define TOKEN "smbZqxg7emKgnhNjHNgF"
 #define soft Serial1
 
 int info_update_time = 1000;
 int menu_update_time = 5000;
-int upload_tid = 5000;
+int upload_tid = 20000;
 int water_level_tid = 60000;
 long vande_tid = 10000;
 int converted_vande_tid = 10;
 long kontrol_tid = 60000;
 int converted_kontrol_tid = 1;
 int converted_resterende_tid;
-int setpunkt_fugt = 50;
+int setpunkt_fugt = 30;
 int pin_relae_1 = 5;
 int pin_relae_2 = 6;
 int antal_vandinger = 0;
@@ -47,6 +47,11 @@ int knap_3 = 0;
 int knap_4 = 0;
 char thingsboardServer[] = "emhost.dk";
 int returnCM;
+const int analogInPin = A0;  
+int minADC = 10;
+int maxADC = 612; 
+int moistureValue, jord_fugt;
+
 WiFiEspClient espClient;
 PubSubClient client(espClient);
 
@@ -63,7 +68,6 @@ MillisTimer water_level_tid_timer = MillisTimer();
 
 
 
-
 int temperature;
 int humidity;
 
@@ -74,7 +78,7 @@ enum FunctionTypes {
 };
 
 
-LiquidLine home_1_1(0, 0, "Jord Fugt:"," ", humidity,"%" );
+LiquidLine home_1_1(0, 0, "Jord Fugt:"," ", jord_fugt,"%" );
 LiquidLine home_1_2(0, 1, "Vandinger:"," ", antal_vandinger);
 LiquidScreen home_1(home_1_1,home_1_2);
 
@@ -104,18 +108,7 @@ void setup()
 {
  dht.begin();
  Serial.begin(9600);
-
-// initialize serial for ESP module
-soft.begin(9600);
-// initialize ESP module
-WiFi.init(&soft);
-// check for the presence of the shield
-if (WiFi.status() == WL_NO_SHIELD) {
-  Serial.println("WiFi shield not present");
-  // don't continue
-  while (true);
-  }
-
+ InitWiFi();
  client.setServer( thingsboardServer, 1883 );
  lastSend = 0;
  update_menu_timer.expiredHandler(update_menu);
@@ -253,7 +246,7 @@ void buttonsCheck() {
 
 
 void kontrol(){
-  if(humidity <= setpunkt_fugt){
+  if(jord_fugt <= setpunkt_fugt){
     water_level();
     start_pumpe();
 
@@ -283,6 +276,9 @@ void stop_pumpe(){
 void update_info(){
   temperature = dht.readTemperature();
   humidity = dht.readHumidity();
+  moistureValue = analogRead(analogInPin);
+  jord_fugt = map(moistureValue,minADC,maxADC, 0, 100); 
+
  }
 
 void update_menu(){
@@ -312,6 +308,79 @@ void water_level() {
   Serial.println(distanceCM);
 }
 
+void getAndSendTemperatureAndHumidityData()
+{
+  Serial.println("Collecting data, and sending to server");
+
+  // Reading temperature or humidity takes about 250 milliseconds!
+  float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  // Prepare a JSON payload string
+  String payload = "{";
+  payload += "\"temperature\":"; payload += temperature; payload += ",";
+  payload += "\"humidity\":"; payload += humidity; payload += ",";
+  payload += "\"water level\":"; payload += returnCM; payload += ",";
+  payload += "\"vandinger\":"; payload += antal_vandinger; payload += ",";
+  payload += "\"jord_fugt\":"; payload += jord_fugt;
+  payload += "}";
+
+  // Send payload
+  char attributes[100];
+  payload.toCharArray( attributes, 100 );
+  client.publish( "v1/devices/me/telemetry", attributes );
+  Serial.println( attributes );
+}
+
+void InitWiFi()
+{
+  // initialize serial for ESP module
+  soft.begin(9600);
+  // initialize ESP module
+  WiFi.init(&soft);
+  // check for the presence of the shield
+  if (WiFi.status() == WL_NO_SHIELD) {
+    Serial.println("WiFi shield not present");
+    // don't continue
+    while (true);
+  }
+
+  Serial.println("Connecting to AP ...");
+  // attempt to connect to WiFi network
+  while ( status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.println(WIFI_AP);
+    // Connect to WPA/WPA2 network
+    status = WiFi.begin(WIFI_AP, WIFI_PASSWORD);
+    delay(500);
+  }
+  Serial.println("Connected to AP");
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Connecting to ThingsBoard node ...");
+    // Attempt to connect (clientId, username, password)
+    if ( client.connect("Arduino Uno Device", TOKEN, NULL) ) {
+      Serial.println( "[DONE]" );
+    } else {
+      Serial.print( "[FAILED] [ rc = " );
+      Serial.print( client.state() );
+      Serial.println( " : retrying in 5 seconds]" );
+      // Wait 5 seconds before retrying
+      delay( 5000 );
+    }
+  }
+}
+
 void wifi_connect() {
   status = WiFi.status();
   if ( status != WL_CONNECTED) {
@@ -337,68 +406,6 @@ void wifi_connect() {
   client.loop();
 }
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Connecting to ThingsBoard node ...");
-    // Attempt to connect (clientId, username, password)
-    if ( client.connect("Arduino Uno Device", TOKEN, NULL) ) {
-      Serial.println( "[DONE]" );
-    } else {
-      Serial.print( "[FAILED] [ rc = " );
-      Serial.print( client.state() );
-      Serial.println( " : retrying in 5 seconds]" );
-      // Wait 5 seconds before retrying
-      delay( 5000 );
-    }
-  }
-}
-
-void getAndSendTemperatureAndHumidityData()
-{
-  Serial.println("Collecting temperature data.");
-
-  // Reading temperature or humidity takes about 250 milliseconds!
-  float h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
-  float t = dht.readTemperature();
-
-  // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t)) {
-    Serial.println("Failed to read from DHT sensor!");
-    return;
-  }
-
-  Serial.print("Humidity: ");
-  Serial.print(h);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(t);
-  Serial.print(" *C ");
-
-
-  // Just debug messages
-  Serial.print( "Sending temperature and humidity : [" );
-  Serial.print( temperature ); Serial.print( "," );
-  Serial.print( humidity );
-  Serial.print( antal_vandinger );
-  Serial.print( "]   -> " );
-
-  // Prepare a JSON payload string
-  String payload = "{";
-  payload += "\"temperature\":"; payload += temperature; payload += ",";
-  payload += "\"humidity\":"; payload += humidity; payload += ",";
-  payload += "\"water level\":"; payload += returnCM; payload += ",";
-  payload += "\"vandinger\":"; payload += antal_vandinger;
-  payload += "}";
-
-  // Send payload
-  char attributes[100];
-  payload.toCharArray( attributes, 100 );
-  client.publish( "v1/devices/me/telemetry", attributes );
-  Serial.println( attributes );
-}
-
 void loop(){
   buttonsCheck();
   update_menu_timer.run();
@@ -409,6 +416,5 @@ void loop(){
   water_level_tid_timer.run();
 
 }
-
 
 
