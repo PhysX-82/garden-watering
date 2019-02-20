@@ -1,0 +1,121 @@
+/*
+ * Copyright (c) 2018 https://www.thecoderscorner.com (Nutricherry LTD).
+ * This product is licensed under an Apache license, see the LICENSE file in the top-level directory.
+ */
+
+.eepromEntry {
+  -fx-background-color: #7e8037;
+  -fx-text-fill: black;
+  -fx-font-size: 14px;
+  -fx-padding: 4;
+}
+.brokenEeprom {
+  -fx-background-color: #80171a;
+  -fx-text-fill: white;
+  -fx-font-size: 14px;
+  -fx-padding: 4;
+
+}
+
+.tool-button {
+  -fx-padding: 3 3 3 3;
+
+  -fx-background-color: #444;
+  -fx-border-color: #444;
+  -fx-border-width: 1, 1;
+  -fx-border-style: solid, segments(1, 1);
+  -fx-border-radius: 0, 0;
+  -fx-border-insets: 1 1 1 1, 0;
+
+  -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+  -fx-font-size: 11pt;
+  -fx-text-fill: #d8d8d8;
+}
+
+.tool-button:hover{
+  -fx-border-color: #333333;
+  -fx-border-width: 1, 1;
+  -fx-border-style: solid, segments(1, 1);
+  -fx-border-radius: 0, 0;
+  -fx-border-insets: 1 1 1 1, 0;
+}
+
+.tool-button:pressed, .button:default:hover:pressed
+{
+  -fx-background-color: #515151;
+  -fx-text-fill: #1d1d1d;
+}
+
+.tool-button:focused
+{
+  -fx-border-color: #333333;
+  -fx-border-width: 1, 1;
+  -fx-border-style: solid, segments(1, 1);
+  -fx-border-radius: 0, 0;
+  -fx-border-insets: 1 1 1 1, 0;
+}
+
+.tool-button:disabled, .button:default:disabled
+{
+  -fx-opacity: 0.4;
+  -fx-background-color: #4a4a4a;
+  -fx-text-fill: white;
+}
+
+.header{
+  -fx-font-size: 42pt;
+  -fx-font-family: "Segoe UI Light";
+}
+
+.item-title{
+  -fx-font-size: 12pt;
+  -fx-font-family: "Segoe UI Semibold";
+  -fx-opacity: 0.6;
+  -fx-font-weight: bold;
+}
+
+.menu-bar {
+  -fx-font-size: 120%;
+  -fx-border-color: #757575;
+  -fx-border-width: 1px;
+}
+
+.lcdDisplayTextArea .content {
+  -fx-background-color: #1d67c7;
+  -fx-text-fill: white;
+}
+
+.lcdDisplayTextArea  {
+  -fx-background-color: #1d1d1d;
+  -fx-font-family: Monospaced;
+  -fx-font-size: 130%;
+  -fx-text-fill: white;
+}
+
+.label-bright {
+  -fx-opacity: 1.0;
+  -fx-font-size: 160%;
+}
+
+.libsOK {
+  -fx-background-color: #43cb43;
+  -fx-border-color: #303030;
+  -fx-border-width: 1px;
+  -fx-padding: 4;
+}
+
+.libsNotOK {
+  -fx-padding: 4;
+  -fx-font-weight: bold;
+  -fx-text-fill: white;
+  -fx-background-color: #c01620;
+  -fx-border-color: #040404;
+  -fx-border-width: 1px;
+}
+
+#uiItemErrors {
+  -fx-background-color: #ff2718;
+  -fx-text-fill: white;
+  -fx-font-weight: bold;
+  -fx-padding: 4;
+}

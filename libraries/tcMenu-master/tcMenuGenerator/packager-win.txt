@@ -1,0 +1,48 @@
+# Unfortunately at the moment building the final step into a packaged archive is quite manual.
+# Always start with a command line in maven target directory..
+
+#
+# step 1 before maven build - a version of GSON that has a module-info.class file (must override local repo version)
+#
+
+jdeps --generate-module-info . .\gson-2.8.5.jar
+javac --patch-module gson=gson-2.8.5.jar module-info.java
+jar -uf .\gson-2.8.5.jar -C gson module-info.class
+jar tvf .\gson-2.8.5.jar | findstr module
+
+#
+# Step 2 after maven build - try running as a java app direct from jfx/deps directory (java 11):
+#
+
+java --module-path . --add-modules com.thecoderscorner.tcmenu.menuEditorUI com.thecoderscorner.menu.editorui.MenuEditorApp
+
+#
+# windows java 11 packager to create an image
+#
+
+jpackager create-image --output tcMenuDesigner --input jfx/app --name tcMenuDesigner --module-path jfx/deps --add-modules com.thecoderscorner.tcmenu.menuEditorUI --version 1.1 --icon classes/img/tcMenuDesigner.ico --identifier com.thecoderscorner.menu.editorui --vendor TheCodersCorner  --verbose -m com.thecoderscorner.tcmenu.menuEditorUI/com.thecoderscorner.menu.editorui.MenuEditorApp
+
+Move the inno setup for windows into target/tcMenuDesigner folder, and then run the setup
+
+Rename the setup.exe to setupTcMenu.exe (setup.exe is unsafe)
+
+Job done on windows!
+
+#
+# MacOS package
+#
+
+$JAVA_HOME/bin/jpackager create-image --output tcMenuDesigner --input jfx/app --name tcMenuDesigner --module-path jfx/deps --add-modules com.thecoderscorner.tcmenu.menuEditorUI --version 1.1 --icon classes/img/Icon.icns --identifier com.thecoderscorner.menu.editorui --vendor TheCodersCorner  --verbose -m com.thecoderscorner.tcmenu.menuEditorUI/com.thecoderscorner.menu.editorui.MenuEditorApp
+
+Create a new diskimage and open called tcMenuDesigner-version.dmg with name tcMenuDesigner
+Open shell in that directory
+
+Shell: cp /Users/dave/IdeaProjects/tcMenu/tcMenuGenerator/macos-diskimg.png logo.png
+
+View Settings: Change the background to the logo. Resize the window, select icon view as default. Scale icons to 88px
+
+Shell: mv logo.png .logo.png
+
+Finder window: Drag in the application and Alt-Cmd drag Applications to make a link.
+
+Unmount the disk and open disk utility, and then choose convert. Make a compressed disk image. Job done on macos.
