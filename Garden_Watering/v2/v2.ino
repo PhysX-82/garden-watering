@@ -20,10 +20,18 @@
 LiquidCrystal_I2C lcd(0x3F,16,2); 
 DHT dht(DHTPIN, DHTTYPE);
 
+//Wifi mqtt related
+SoftwareSerial soft(2, 3); // RX, TX
+WiFiEspClient espClient;
+PubSubClient client(espClient);
+char thingsboardServer[] = "iot.emhost.dk";
 #define WIFI_AP "StativStakitKasket-2.4GHz"
 #define WIFI_PASSWORD "123456789a"
 #define TOKEN "smbZqxg7emKgnhNjHNgF"
 #define soft Serial1
+int status = WL_IDLE_STATUS;
+unsigned long lastSend;
+//
 
 int info_update_time = 60000;
 int menu_update_time = 5000;
@@ -48,9 +56,6 @@ int temperature;
 int humidity;
 const int analogInPin = A0;  
 int moistureValue, jord_fugt;
-
-int status = WL_IDLE_STATUS;
-unsigned long lastSend;
 
 MillisTimer update_menu_timer = MillisTimer(menu_update_time);
 MillisTimer update_info_timer = MillisTimer(info_update_time);
@@ -97,7 +102,10 @@ void setup()
 {
  dht.begin();
  Serial.begin(9600);
+ InitWiFi();
+ client.setServer( thingsboardServer, 1883 );
  lastSend = 0;
+ 
  update_menu_timer.expiredHandler(update_menu);
  update_menu_timer.start();
 
@@ -127,8 +135,6 @@ void setup()
  pinMode(triggerPIN, OUTPUT);          // Set the trigPin as an Output (sr04t or v2.0)
   //pinMode(echoPIN, INPUT);            // Set the echoPin as an Input (sr04t)
  pinMode(echoPIN,INPUT_PULLUP);
-
-
  
  lcd.init(); 
  lcd.backlight();
@@ -142,10 +148,6 @@ void setup()
  fugt_2.attach_function(2, decrease_fugt);
  manual_1.attach_function(1, manual_vanding_start);
  manual_1.attach_function(2, manual_vanding_start);
-
-
-
-
 
  menu.add_screen(home_1);
  menu.add_screen(home_2);
@@ -161,6 +163,42 @@ void setup()
 
 }  // end setup
 
+void InitWiFi()
+{
+  soft.begin(9600);
+  WiFi.init(&soft);
+  // check for the presence of the shield
+  if (WiFi.status() == WL_NO_SHIELD) {
+    Serial.println("WiFi shield not present");
+    while (true);
+  }
+
+  Serial.println("Connecting to AP ...");
+  while ( status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WPA SSID: ");
+    Serial.println(WIFI_AP);
+    status = WiFi.begin(WIFI_AP, WIFI_PASSWORD);
+    delay(500);
+  }
+  Serial.println("Connected to AP");
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Connecting to ThingsBoard node ...");
+    // Attempt to connect (clientId, username, password)
+    if ( client.connect("Arduino Uno Device", TOKEN, NULL) ) {
+      Serial.println( "[DONE]" );
+    } else {
+      Serial.print( "[FAILED] [ rc = " );
+      Serial.print( client.state() );
+      Serial.println( " : retrying in 5 seconds]" );
+      // Wait 5 seconds before retrying
+      delay( 5000 );
+    }
+  }
+}
 void manual_vanding_start() {
   if (knap_3 == HIGH)
   {
@@ -287,7 +325,49 @@ void update_menu(){
   converted_resterende_tid = kontrol_tid_timer.getRemainingTime()/ 1000 ;
   menu.update();
 }
+void upload(){  
+  Serial.println("Collecting temperature data.");
 
+  // Reading temperature or humidity takes about 250 milliseconds!
+  float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+
+  Serial.print("Humidity: ");
+  Serial.print(h);
+  Serial.print(" %\t");
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.print(" *C ");
+
+  String temperature = String(t);
+  String humidity = String(h);
+
+
+  // Just debug messages
+  Serial.print( "Sending temperature and humidity : [" );
+  Serial.print( temperature ); Serial.print( "," );
+  Serial.print( humidity );
+  Serial.print( "]   -> " );
+
+  // Prepare a JSON payload string
+  String payload = "{";
+  payload += "\"temperature\":"; payload += temperature; payload += ",";
+  payload += "\"humidity\":"; payload += humidity;
+  payload += "}";
+
+  // Send payload
+  char attributes[100];
+  payload.toCharArray( attributes, 100 );
+  client.publish( "v1/devices/me/telemetry", attributes );
+  Serial.println( attributes );
+  }
 
 void loop(){
   buttonsCheck();
@@ -296,4 +376,24 @@ void loop(){
   kontrol_tid_timer.run();
   vande_tid_timer.run();
 
+//Wifi Check
+  status = WiFi.status();
+  if ( status != WL_CONNECTED) {
+    while ( status != WL_CONNECTED) {
+      Serial.print("Attempting to connect to WPA SSID: ");
+      Serial.println(WIFI_AP);
+      // Connect to WPA/WPA2 network
+      status = WiFi.begin(WIFI_AP, WIFI_PASSWORD);
+      delay(500);
+    }
+    Serial.println("Connected to AP");
+  }
+  if ( !client.connected() ) {
+    reconnect();
+  }
+  if ( millis() - lastSend > 1000 ) { // Update and send only after 1 seconds
+    upload();
+    lastSend = millis();
+  }
+  client.loop();
 }
